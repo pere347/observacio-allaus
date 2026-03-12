@@ -68,19 +68,25 @@ document.addEventListener('DOMContentLoaded', () => {
     coordsInfo.textContent = `📍 Lat: ${latSelected.toFixed(6)} | Lon: ${lonSelected.toFixed(6)}`;
   }
 
-  function setMarker(lat, lon, zoom = FOCUS_ZOOM) {
-    latSelected = Number(lat);
-    lonSelected = Number(lon);
-
-    if (!map) return;
-
+  function setMarker(lat, lon, label = "Ubicació de l'allau") {
+    latSelected = lat;
+    lonSelected = lon;
+  
+    coordsInfo.innerHTML = `✅ Lat: <strong>${lat.toFixed(5)}</strong>, Lon: <strong>${lon.toFixed(5)}</strong>`;
+  
     if (marcador) {
       map.removeLayer(marcador);
     }
-
-    marcador = L.marker([latSelected, lonSelected]).addTo(map);
-    map.setView([latSelected, lonSelected], zoom);
-    updateCoordsInfo();
+  
+    marcador = L.marker([lat, lon], { draggable: true })
+      .addTo(map)
+      .bindPopup(label)
+      .openPopup();
+  
+    marcador.on('dragend', function () {
+      const pos = marcador.getLatLng();
+      setMarker(pos.lat, pos.lng, "Ubicació ajustada");
+    });
   }
 
   function renderFotos() {
@@ -247,58 +253,44 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function initMap() {
-    const crs25831 = new L.Proj.CRS(
-      'EPSG:25831',
-      '+proj=utm +zone=31 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs',
+    const icgcTopo = L.tileLayer(
+      'https://geoserveis.icgc.cat/servei/catalunya/mapa-base/wmts/topografic/MON3857NW/{z}/{y}/{x}.png',
       {
-        resolutions: [1100, 550, 275, 100, 50, 25, 10, 5, 2, 1, 0.5, 0.25]
+        maxZoom: 19,
+        attribution: '&copy; ICGC'
+      }
+    );
+  
+    const icgcOrto = L.tileLayer(
+      'https://geoserveis.icgc.cat/servei/catalunya/mapa-base/wmts/orto/MON3857NW/{z}/{y}/{x}.png',
+      {
+        maxZoom: 19,
+        attribution: '&copy; ICGC'
       }
     );
   
     map = L.map('map', {
-      crs: crs25831,
-      center: [42.45, 1.75],
+      center: [42.400, 1.800],
       zoom: 8,
-      zoomControl: true
+      layers: [icgcTopo]
     });
-  
-    const topo = L.tileLayer.wms('https://geoserveis.icgc.cat/icc_mapesmultibase/utm/wms/service?', {
-      layers: 'topo',
-      format: 'image/jpeg',
-      crs: crs25831,
-      continuousWorld: true,
-      attribution: '&copy; ICGC'
-    });
-  
-    const orto = L.tileLayer.wms('https://geoserveis.icgc.cat/icc_mapesmultibase/utm/wms/service?', {
-      layers: 'orto',
-      format: 'image/jpeg',
-      crs: crs25831,
-      continuousWorld: true,
-      attribution: '&copy; ICGC'
-    });
-  
-    topo.addTo(map);
   
     L.control.layers(
       {
-        'Topogràfic': topo,
-        'Ortofoto': orto
+        'Mapa Topogràfic': icgcTopo,
+        'Ortofoto Vigent': icgcOrto
       },
-      {},
-      { collapsed: true }
+      null,
+      { position: 'topright' }
     ).addTo(map);
   
-    map.on('click', (e) => {
+    map.on('click', function (e) {
       setMarker(e.latlng.lat, e.latlng.lng);
     });
   
-    map.whenReady(() => {
-      setTimeout(() => map.invalidateSize(), 300);
-    });
-  
-    setTimeout(() => map.invalidateSize(), 700);
-    window.addEventListener('resize', () => map.invalidateSize());
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 500);
   }
 
   btnGps.addEventListener('click', () => {
@@ -306,40 +298,42 @@ document.addEventListener('DOMContentLoaded', () => {
       alert('El dispositiu no permet geolocalització.');
       return;
     }
-
+  
+    coordsInfo.innerText = 'Buscant satèl·lits... 🛰️';
+  
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setMarker(position.coords.latitude, position.coords.longitude);
+      (pos) => {
+        map.setView([pos.coords.latitude, pos.coords.longitude], 15);
+        setMarker(pos.coords.latitude, pos.coords.longitude, "La meva posició GPS");
       },
       () => {
-        alert('No s\'ha pogut obtenir la ubicació.');
+        coordsInfo.innerHTML = "<span style='color:red;'>Error de GPS.</span>";
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000
-      }
+      { enableHighAccuracy: true, timeout: 60000, maximumAge: 0 }
     );
   });
 
-  btnMapGps.addEventListener('click', () => {
-    if (!navigator.geolocation || !map) return;
-
-    btnMapGps.textContent = '⏳';
-
+  btnMapGps.addEventListener('click', (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btn-map-gps');
+  
+    if (!navigator.geolocation) {
+      alert('Geolocalització no suportada.');
+      return;
+    }
+  
+    btn.innerText = '⏳';
+  
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const lat = position.coords.latitude;
-        const lon = position.coords.longitude;
-        map.setView([lat, lon], FOCUS_ZOOM);
-        btnMapGps.textContent = '🎯';
+      (pos) => {
+        map.setView([pos.coords.latitude, pos.coords.longitude], 14);
+        btn.innerText = '🎯';
       },
       () => {
-        btnMapGps.textContent = '🎯';
+        alert('Error obtenint ubicació.');
+        btn.innerText = '🎯';
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000
-      }
+      { enableHighAccuracy: true, timeout: 10000 }
     );
   });
 
