@@ -247,16 +247,39 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function initMap() {
+    const crs25831 = new L.Proj.CRS(
+      'EPSG:25831',
+      '+proj=utm +zone=31 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs',
+      {
+        resolutions: [1100, 550, 275, 100, 50, 25, 10, 5, 2, 1, 0.5, 0.25]
+      }
+    );
+  
     map = L.map('map', {
-      center: INITIAL_CENTER,
-      zoom: INITIAL_ZOOM,
+      crs: crs25831,
+      center: [42.45, 1.75],
+      zoom: 8,
       zoomControl: true
     });
-
-    const { topo, orto } = createBaseLayers();
-
+  
+    const topo = L.tileLayer.wms('https://geoserveis.icgc.cat/icc_mapesmultibase/utm/wms/service?', {
+      layers: 'topo',
+      format: 'image/jpeg',
+      crs: crs25831,
+      continuousWorld: true,
+      attribution: '&copy; ICGC'
+    });
+  
+    const orto = L.tileLayer.wms('https://geoserveis.icgc.cat/icc_mapesmultibase/utm/wms/service?', {
+      layers: 'orto',
+      format: 'image/jpeg',
+      crs: crs25831,
+      continuousWorld: true,
+      attribution: '&copy; ICGC'
+    });
+  
     topo.addTo(map);
-
+  
     L.control.layers(
       {
         'Topogràfic': topo,
@@ -265,24 +288,17 @@ document.addEventListener('DOMContentLoaded', () => {
       {},
       { collapsed: true }
     ).addTo(map);
-
+  
     map.on('click', (e) => {
       setMarker(e.latlng.lat, e.latlng.lng);
     });
-
+  
     map.whenReady(() => {
-      setTimeout(() => {
-        map.invalidateSize();
-      }, 250);
+      setTimeout(() => map.invalidateSize(), 300);
     });
-
-    setTimeout(() => {
-      map.invalidateSize();
-    }, 500);
-
-    window.addEventListener('resize', () => {
-      map.invalidateSize();
-    });
+  
+    setTimeout(() => map.invalidateSize(), 700);
+    window.addEventListener('resize', () => map.invalidateSize());
   }
 
   btnGps.addEventListener('click', () => {
