@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>UPAN | Registre preliminar d'allaus</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Registre preliminar d'allaus</h1>
+    <p>Captura inicial per a observadors de camp</p>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>Localització</h2>
+      <div class="map-wrapper">
+        <div id="map"></div>
+        <button id="btn-map-gps" class="btn-map-gps" type="button" title="Centrar a la meva posició">🎯</button>
+      </div>
+      <p class="map-hint">Toca el mapa per situar l'allau o fes servir el GPS per capturar la teva posició.</p>
+      <button id="btn-gps" class="btn btn-gps" type="button">📍 Capturar la meva ubicació actual</button>
+      <div id="coords-info">🗺️ Cap ubicació seleccionada</div>
+    </section>
+
+    <section class="card">
+      <h2>Dades de l'observació</h2>
+
+      <div class="camp">
+        <label for="input-observador">Observador</label>
+        <input type="text" id="input-observador" placeholder="Nom o codi de l'observador">
+      </div>
+
+      <div class="camp">
+        <label for="input-data">Data de l'observació</label>
+        <input type="text" id="input-data" inputmode="numeric" placeholder="DD/MM/AAAA" maxlength="10">
+      </div>
+
+      <div class="camp">
+        <label for="input-lloc">Nom del sector / lloc</label>
+        <input type="text" id="input-lloc" placeholder="Ex: Vessant N, Tuc de la Feixa">
+      </div>
+
+      <div class="row-2">
+        <div class="camp">
+          <label for="input-mida">Mida observada</label>
+          <select id="input-mida">
+            <option value="" selected>Tria...</option>
+            <option value="D1">D1</option>
+            <option value="D2">D2</option>
+            <option value="D3">D3</option>
+            <option value="D4">D4</option>
+            <option value="D5">D5</option>
+            <option value="Desconegut">Desconegut</option>
+          </select>
+        </div>
+
+        <div class="camp">
+          <label for="input-tipus">Tipus</label>
+          <select id="input-tipus">
+            <option value="" selected>Tria...</option>
+            <option value="Placa de vent">Placa de vent</option>
+            <option value="Neu humida">Neu humida</option>
+            <option value="Lliscament basal">Lliscament basal</option>
+            <option value="Neu recent">Neu recent</option>
+            <option value="Neu ventada">Neu ventada</option>
+            <option value="Desconegut">Desconegut</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="camp">
+        <label for="input-comentaris">Comentaris</label>
+        <textarea id="input-comentaris" placeholder="Detalls addicionals o observacions de camp"></textarea>
+      </div>
+
+      <div class="camp">
+        <label class="btn btn-foto" for="input-foto">📷 Capturar fotografies</label>
+        <input type="file" id="input-foto" accept="image/*" capture="environment" multiple>
+        <div id="preview-container"></div>
+      </div>
+
+      <button id="btn-guardar" class="btn btn-guardar" type="button">💾 Guardar al dispositiu (offline)</button>
+    </section>
+
+    <section class="card sync-section">
+      <h2>Pendents d'enviar <span class="counter">(<span id="comptador">0</span>)</span></h2>
+      <div id="llista-registres"></div>
+      <button id="btn-sync" class="btn btn-sync" type="button" style="display:none;">📡 Sincronitzar</button>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
