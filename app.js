@@ -2,6 +2,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const BACKEND_URL = null;
   const STORAGE_KEY = 'allaus_pendents';
 
+  const INITIAL_CENTER = [42.45, 1.75];
+  const INITIAL_ZOOM = 10;
+  const FOCUS_ZOOM = 14;
+
   let map;
   let marcador = null;
   let latSelected = null;
@@ -22,6 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnSync = document.getElementById('btn-sync');
   const llistaRegistres = document.getElementById('llista-registres');
   const comptador = document.getElementById('comptador');
+  const btnGps = document.getElementById('btn-gps');
+  const btnMapGps = document.getElementById('btn-map-gps');
 
   function formatDateDisplay(date) {
     const dd = String(date.getDate()).padStart(2, '0');
@@ -33,11 +39,17 @@ document.addEventListener('DOMContentLoaded', () => {
   function isValidDateDDMMYYYY(value) {
     const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
     if (!match) return false;
+
     const day = Number(match[1]);
     const month = Number(match[2]);
     const year = Number(match[3]);
     const date = new Date(year, month - 1, day);
-    return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+
+    return (
+      date.getFullYear() === year &&
+      date.getMonth() === month - 1 &&
+      date.getDate() === day
+    );
   }
 
   function autoFormatDate(value) {
@@ -52,20 +64,28 @@ document.addEventListener('DOMContentLoaded', () => {
       coordsInfo.textContent = '🗺️ Cap ubicació seleccionada';
       return;
     }
+
     coordsInfo.textContent = `📍 Lat: ${latSelected.toFixed(6)} | Lon: ${lonSelected.toFixed(6)}`;
   }
 
-  function setMarker(lat, lon, zoom = 14) {
-    latSelected = lat;
-    lonSelected = lon;
-    if (marcador) map.removeLayer(marcador);
-    marcador = L.marker([lat, lon]).addTo(map);
-    map.setView([lat, lon], zoom);
+  function setMarker(lat, lon, zoom = FOCUS_ZOOM) {
+    latSelected = Number(lat);
+    lonSelected = Number(lon);
+
+    if (!map) return;
+
+    if (marcador) {
+      map.removeLayer(marcador);
+    }
+
+    marcador = L.marker([latSelected, lonSelected]).addTo(map);
+    map.setView([latSelected, lonSelected], zoom);
     updateCoordsInfo();
   }
 
   function renderFotos() {
     previewContainer.innerHTML = '';
+
     fotos.forEach((foto, index) => {
       const wrapper = document.createElement('div');
       wrapper.className = 'preview-img-wrapper';
@@ -76,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
       previewContainer.appendChild(wrapper);
     });
 
-    previewContainer.querySelectorAll('.btn-remove-foto').forEach(btn => {
+    previewContainer.querySelectorAll('.btn-remove-foto').forEach((btn) => {
       btn.addEventListener('click', () => {
         const index = Number(btn.dataset.index);
         fotos.splice(index, 1);
@@ -86,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function getDrafts() {
-    return await localforage.getItem(STORAGE_KEY) || [];
+    return (await localforage.getItem(STORAGE_KEY)) || [];
   }
 
   async function saveDrafts(drafts) {
@@ -103,10 +123,15 @@ document.addEventListener('DOMContentLoaded', () => {
     inputFoto.value = '';
     fotos = [];
     editIndex = null;
-    if (marcador) {
-      map.removeLayer(marcador);
-      marcador = null;
+
+    if (map) {
+      if (marcador) {
+        map.removeLayer(marcador);
+        marcador = null;
+      }
+      map.setView(INITIAL_CENTER, INITIAL_ZOOM);
     }
+
     latSelected = null;
     lonSelected = null;
     updateCoordsInfo();
@@ -126,7 +151,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     dades.forEach((allau, index) => {
-      const thumbs = (allau.fotos || []).slice(0, 2).map(foto => `<img src="${foto}" alt="Miniatura">`).join('');
+      const thumbs = (allau.fotos || [])
+        .slice(0, 2)
+        .map((foto) => `<img src="${foto}" alt="Miniatura">`)
+        .join('');
+
       const item = document.createElement('div');
       item.className = 'registre';
       item.innerHTML = `
@@ -151,11 +180,11 @@ document.addEventListener('DOMContentLoaded', () => {
     comptador.textContent = String(dades.length);
     btnSync.style.display = 'block';
 
-    llistaRegistres.querySelectorAll('.btn-editar').forEach(btn => {
+    llistaRegistres.querySelectorAll('.btn-editar').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const index = Number(btn.dataset.index);
-        const dades = await getDrafts();
-        const allau = dades[index];
+        const dadesLocals = await getDrafts();
+        const allau = dadesLocals[index];
         if (!allau) return;
 
         editIndex = index;
@@ -167,82 +196,134 @@ document.addEventListener('DOMContentLoaded', () => {
         inputComentaris.value = allau.comentaris || '';
         fotos = [...(allau.fotos || [])];
         renderFotos();
+
         if (typeof allau.lat === 'number' && typeof allau.lon === 'number') {
           setMarker(allau.lat, allau.lon);
         }
+
         btnGuardar.textContent = '💾 Actualitzar registre';
         window.scrollTo({ top: 0, behavior: 'smooth' });
       });
     });
 
-    llistaRegistres.querySelectorAll('.btn-esborrar').forEach(btn => {
+    llistaRegistres.querySelectorAll('.btn-esborrar').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const index = Number(btn.dataset.index);
-        const dades = await getDrafts();
-        dades.splice(index, 1);
-        await saveDrafts(dades);
-        if (editIndex === index) clearForm();
+        const dadesLocals = await getDrafts();
+        dadesLocals.splice(index, 1);
+        await saveDrafts(dadesLocals);
+
+        if (editIndex === index) {
+          clearForm();
+        }
+
         await carregarDadesLocals();
       });
     });
   }
 
-  function initMap() {
-    map = L.map('map').setView([42.5, 1.7], 8);
+  function createBaseLayers() {
+    const wmsUrl = 'https://geoserveis.icgc.cat/servei/catalunya/mapa-base/wms';
 
-    const topo = L.tileLayer.wms(
-      'https://geoserveis.icgc.cat/servei/catalunya/mapa-base/wms',
-      {
-        layers: 'topografic',
-        format: 'image/png',
-        transparent: false,
-        version: '1.1.1',
-        attribution: '&copy; ICGC'
-      }
-    );
-    
-    const orto = L.tileLayer.wms(
-      'https://geoserveis.icgc.cat/servei/catalunya/mapa-base/wms',
-      {
-        layers: 'orto',
-        format: 'image/png',
-        transparent: false,
-        version: '1.1.1',
-        attribution: '&copy; ICGC'
-      }
-    );
+    const commonOptions = {
+      format: 'image/png',
+      transparent: false,
+      version: '1.1.1',
+      crs: L.CRS.EPSG3857,
+      attribution: '&copy; ICGC'
+    };
+
+    const topo = L.tileLayer.wms(wmsUrl, {
+      ...commonOptions,
+      layers: 'topografic'
+    });
+
+    const orto = L.tileLayer.wms(wmsUrl, {
+      ...commonOptions,
+      layers: 'orto'
+    });
+
+    return { topo, orto };
+  }
+
+  function initMap() {
+    map = L.map('map', {
+      center: INITIAL_CENTER,
+      zoom: INITIAL_ZOOM,
+      zoomControl: true
+    });
+
+    const { topo, orto } = createBaseLayers();
 
     topo.addTo(map);
-    L.control.layers({ 'Topogràfic': topo, 'Ortofoto': orto }, {}, { collapsed: true }).addTo(map);
+
+    L.control.layers(
+      {
+        'Topogràfic': topo,
+        'Ortofoto': orto
+      },
+      {},
+      { collapsed: true }
+    ).addTo(map);
 
     map.on('click', (e) => {
       setMarker(e.latlng.lat, e.latlng.lng);
     });
+
+    map.whenReady(() => {
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 250);
+    });
+
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 500);
+
+    window.addEventListener('resize', () => {
+      map.invalidateSize();
+    });
   }
 
-  document.getElementById('btn-gps').addEventListener('click', () => {
+  btnGps.addEventListener('click', () => {
     if (!navigator.geolocation) {
       alert('El dispositiu no permet geolocalització.');
       return;
     }
+
     navigator.geolocation.getCurrentPosition(
-      (position) => setMarker(position.coords.latitude, position.coords.longitude),
-      () => alert('No s\'ha pogut obtenir la ubicació.'),
-      { enableHighAccuracy: true, timeout: 10000 }
+      (position) => {
+        setMarker(position.coords.latitude, position.coords.longitude);
+      },
+      () => {
+        alert('No s\'ha pogut obtenir la ubicació.');
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000
+      }
     );
   });
 
-  document.getElementById('btn-map-gps').addEventListener('click', () => {
-    if (!navigator.geolocation) return;
-    const btn = document.getElementById('btn-map-gps');
-    btn.textContent = '⏳';
+  btnMapGps.addEventListener('click', () => {
+    if (!navigator.geolocation || !map) return;
+
+    btnMapGps.textContent = '⏳';
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        map.setView([position.coords.latitude, position.coords.longitude], 14);
-        btn.textContent = '🎯';
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        map.setView([lat, lon], FOCUS_ZOOM);
+        btnMapGps.textContent = '🎯';
       },
-      () => { btn.textContent = '🎯'; },
-      { enableHighAccuracy: true, timeout: 10000 }
+      () => {
+        btnMapGps.textContent = '🎯';
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000
+      }
     );
   });
 
@@ -252,6 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   inputFoto.addEventListener('change', (event) => {
     const files = Array.from(event.target.files || []);
+
     files.forEach((file) => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -260,6 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
       };
       reader.readAsDataURL(file);
     });
+
     inputFoto.value = '';
   });
 
@@ -271,11 +354,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const tipus = inputTipus.value;
     const comentaris = inputComentaris.value.trim();
 
-    if (!observador) return alert('Introdueix l\'observador.');
-    if (!isValidDateDDMMYYYY(dataObservacio)) return alert('La data ha de tenir format DD/MM/AAAA.');
-    if (latSelected === null || lonSelected === null) return alert('Toca el mapa o usa el GPS per situar l\'allau.');
-    if (!lloc) return alert('Escriu el nom del sector o lloc.');
-    if (fotos.length === 0) return alert('Afegeix almenys una fotografia.');
+    if (!observador) {
+      alert('Introdueix l\'observador.');
+      return;
+    }
+
+    if (!isValidDateDDMMYYYY(dataObservacio)) {
+      alert('La data ha de tenir format DD/MM/AAAA.');
+      return;
+    }
+
+    if (latSelected === null || lonSelected === null) {
+      alert('Toca el mapa o usa el GPS per situar l\'allau.');
+      return;
+    }
+
+    if (!lloc) {
+      alert('Escriu el nom del sector o lloc.');
+      return;
+    }
+
+    if (fotos.length === 0) {
+      alert('Afegeix almenys una fotografia.');
+      return;
+    }
 
     const novaAllau = {
       observador,
@@ -291,11 +393,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const dades = await getDrafts();
+
     if (editIndex !== null) {
       dades[editIndex] = novaAllau;
     } else {
       dades.push(novaAllau);
     }
+
     await saveDrafts(dades);
     clearForm();
     await carregarDadesLocals();
@@ -304,8 +408,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   btnSync.addEventListener('click', async () => {
     const dades = await getDrafts();
+
     if (dades.length === 0) return;
-    if (!navigator.onLine) return alert('❌ No tens internet per sincronitzar.');
+
+    if (!navigator.onLine) {
+      alert('❌ No tens internet per sincronitzar.');
+      return;
+    }
 
     if (!BACKEND_URL) {
       alert('Versió demo: la sincronització real encara no està connectada al backend.');
@@ -322,7 +431,10 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(dades)
       });
 
-      if (!response.ok) throw new Error('Error de servidor');
+      if (!response.ok) {
+        throw new Error('Error de servidor');
+      }
+
       await localforage.removeItem(STORAGE_KEY);
       await carregarDadesLocals();
       alert('🚀 Dades enviades correctament.');
