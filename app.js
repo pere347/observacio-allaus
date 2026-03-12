@@ -190,13 +190,21 @@ document.addEventListener('DOMContentLoaded', () => {
   function initMap() {
     map = L.map('map').setView([42.5, 1.7], 8);
 
-    const topo = L.tileLayer('https://geoserveis.icgc.cat/icc_mapesmultibase/noutm/wmts/topografia/CAT3857/{z}/{x}/{y}.png', {
-      attribution: '&copy; ICGC'
-    });
+    const topo = L.tileLayer(
+      'https://geoserveis.icgc.cat/servei/catalunya/mapa-base/wmts/topografic/MON3857NW/{z}/{y}/{x}.png',
+      {
+        attribution: '&copy; ICGC',
+        maxZoom: 19
+      }
+    );
 
-    const orto = L.tileLayer('https://geoserveis.icgc.cat/icc_mapesmultibase/noutm/wmts/orto/CAT3857/{z}/{x}/{y}.jpeg', {
-      attribution: '&copy; ICGC'
-    });
+    const orto = L.tileLayer(
+      'https://geoserveis.icgc.cat/servei/catalunya/mapa-base/wmts/orto/MON3857NW/{z}/{y}/{x}.png',
+      {
+        attribution: '&copy; ICGC',
+        maxZoom: 19
+      }
+    );
 
     topo.addTo(map);
     L.control.layers({ 'Topogràfic': topo, 'Ortofoto': orto }, {}, { collapsed: true }).addTo(map);
