@@ -22,9 +22,6 @@ body {
 }
 
 header {
-  position: sticky;
-  top: 0;
-  z-index: 1000;
   background: var(--primary);
   color: var(--white);
   padding: 14px 16px;
@@ -87,9 +84,9 @@ header p { margin: 4px 0 0; font-size: .86rem; opacity: .9; }
 
 .btn-map-gps {
   position: absolute;
-  top: 60px;
+  top: 70px;
   right: 10px;
-  z-index: 1000;
+  z-index: 700;
   width: 34px;
   height: 34px;
   display: flex;
@@ -252,4 +249,13 @@ input[type="file"] { display: none; }
 @media (max-width: 640px) {
   .row-2 { grid-template-columns: 1fr; }
   .preview-img-wrapper { width: calc(50% - 5px); }
+}
+
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 600;
+}
+
+.leaflet-top .leaflet-control {
+  margin-top: 16px;
 }
